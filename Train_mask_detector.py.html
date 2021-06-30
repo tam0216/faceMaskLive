@@ -1,0 +1,157 @@
+<html>
+<head>
+<title>Train_mask_detector.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #808080;}
+.s1 { color: #a9b7c6;}
+.s2 { color: #cc7832;}
+.s3 { color: #6897bb;}
+.s4 { color: #6a8759;}
+</style>
+</head>
+<body bgcolor="#2b2b2b">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+Train_mask_detector.py</font>
+</center></td></tr></table>
+<pre><span class="s0"># import the necessary packages</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.preprocessing.image </span><span class="s2">import </span><span class="s1">ImageDataGenerator</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.applications </span><span class="s2">import </span><span class="s1">MobileNetV2</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.layers </span><span class="s2">import </span><span class="s1">AveragePooling2D</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.layers </span><span class="s2">import </span><span class="s1">Dropout</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.layers </span><span class="s2">import </span><span class="s1">Flatten</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.layers </span><span class="s2">import </span><span class="s1">Dense</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.layers </span><span class="s2">import </span><span class="s1">Input</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.models </span><span class="s2">import </span><span class="s1">Model</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.optimizers </span><span class="s2">import </span><span class="s1">Adam</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.applications.mobilenet_v2 </span><span class="s2">import </span><span class="s1">preprocess_input</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.preprocessing.image </span><span class="s2">import </span><span class="s1">img_to_array</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.preprocessing.image </span><span class="s2">import </span><span class="s1">load_img</span>
+<span class="s2">from </span><span class="s1">tensorflow.keras.utils </span><span class="s2">import </span><span class="s1">to_categorical</span>
+<span class="s2">from </span><span class="s1">sklearn.preprocessing </span><span class="s2">import </span><span class="s1">LabelBinarizer</span>
+<span class="s2">from </span><span class="s1">sklearn.model_selection </span><span class="s2">import </span><span class="s1">train_test_split</span>
+<span class="s2">from </span><span class="s1">sklearn.metrics </span><span class="s2">import </span><span class="s1">classification_report</span>
+<span class="s2">from </span><span class="s1">imutils </span><span class="s2">import </span><span class="s1">paths</span>
+<span class="s2">import </span><span class="s1">matplotlib.pyplot </span><span class="s2">as </span><span class="s1">plt</span>
+<span class="s2">import </span><span class="s1">numpy </span><span class="s2">as </span><span class="s1">np</span>
+<span class="s2">import </span><span class="s1">os</span>
+
+<span class="s0"># initialize the initial learning rate, number of epochs to train for,</span>
+<span class="s0"># and batch size</span>
+<span class="s1">INIT_LR = </span><span class="s3">1e-4</span>
+<span class="s1">EPOCHS = </span><span class="s3">20</span>
+<span class="s1">BS = </span><span class="s3">32</span>
+
+<span class="s1">DIRECTORY = </span><span class="s4">r&quot;C:\Mask Detection\CODE\Face-Mask-Detection-master\dataset&quot;</span>
+<span class="s1">CATEGORIES = [</span><span class="s4">&quot;with_mask&quot;</span><span class="s2">, </span><span class="s4">&quot;without_mask&quot;</span><span class="s1">]</span>
+
+<span class="s0"># grab the list of images in our dataset directory, then initialize</span>
+<span class="s0"># the list of data (i.e., images) and class images</span>
+<span class="s1">print(</span><span class="s4">&quot;[INFO] loading images...&quot;</span><span class="s1">)</span>
+
+<span class="s1">data = []</span>
+<span class="s1">labels = []</span>
+
+<span class="s2">for </span><span class="s1">category </span><span class="s2">in </span><span class="s1">CATEGORIES:</span>
+    <span class="s1">path = os.path.join(DIRECTORY</span><span class="s2">, </span><span class="s1">category)</span>
+    <span class="s2">for </span><span class="s1">img </span><span class="s2">in </span><span class="s1">os.listdir(path):</span>
+    	<span class="s1">img_path = os.path.join(path</span><span class="s2">, </span><span class="s1">img)</span>
+    	<span class="s1">image = load_img(img_path</span><span class="s2">, </span><span class="s1">target_size=(</span><span class="s3">224</span><span class="s2">, </span><span class="s3">224</span><span class="s1">))</span>
+    	<span class="s1">image = img_to_array(image)</span>
+    	<span class="s1">image = preprocess_input(image)</span>
+
+    	<span class="s1">data.append(image)</span>
+    	<span class="s1">labels.append(category)</span>
+
+<span class="s0"># perform one-hot encoding on the labels</span>
+<span class="s1">lb = LabelBinarizer()</span>
+<span class="s1">labels = lb.fit_transform(labels)</span>
+<span class="s1">labels = to_categorical(labels)</span>
+
+<span class="s1">data = np.array(data</span><span class="s2">, </span><span class="s1">dtype=</span><span class="s4">&quot;float32&quot;</span><span class="s1">)</span>
+<span class="s1">labels = np.array(labels)</span>
+
+<span class="s1">(trainX</span><span class="s2">, </span><span class="s1">testX</span><span class="s2">, </span><span class="s1">trainY</span><span class="s2">, </span><span class="s1">testY) = train_test_split(data</span><span class="s2">, </span><span class="s1">labels</span><span class="s2">,</span>
+	<span class="s1">test_size=</span><span class="s3">0.20</span><span class="s2">, </span><span class="s1">stratify=labels</span><span class="s2">, </span><span class="s1">random_state=</span><span class="s3">42</span><span class="s1">)</span>
+
+<span class="s0"># construct the training image generator for data augmentation</span>
+<span class="s1">aug = ImageDataGenerator(</span>
+	<span class="s1">rotation_range=</span><span class="s3">20</span><span class="s2">,</span>
+	<span class="s1">zoom_range=</span><span class="s3">0.15</span><span class="s2">,</span>
+	<span class="s1">width_shift_range=</span><span class="s3">0.2</span><span class="s2">,</span>
+	<span class="s1">height_shift_range=</span><span class="s3">0.2</span><span class="s2">,</span>
+	<span class="s1">shear_range=</span><span class="s3">0.15</span><span class="s2">,</span>
+	<span class="s1">horizontal_flip=</span><span class="s2">True,</span>
+	<span class="s1">fill_mode=</span><span class="s4">&quot;nearest&quot;</span><span class="s1">)</span>
+
+<span class="s0"># load the MobileNetV2 network, ensuring the head FC layer sets are</span>
+<span class="s0"># left off</span>
+<span class="s1">baseModel = MobileNetV2(weights=</span><span class="s4">&quot;imagenet&quot;</span><span class="s2">, </span><span class="s1">include_top=</span><span class="s2">False,</span>
+	<span class="s1">input_tensor=Input(shape=(</span><span class="s3">224</span><span class="s2">, </span><span class="s3">224</span><span class="s2">, </span><span class="s3">3</span><span class="s1">)))</span>
+
+<span class="s0"># construct the head of the model that will be placed on top of the</span>
+<span class="s0"># the base model</span>
+<span class="s1">headModel = baseModel.output</span>
+<span class="s1">headModel = AveragePooling2D(pool_size=(</span><span class="s3">7</span><span class="s2">, </span><span class="s3">7</span><span class="s1">))(headModel)</span>
+<span class="s1">headModel = Flatten(name=</span><span class="s4">&quot;flatten&quot;</span><span class="s1">)(headModel)</span>
+<span class="s1">headModel = Dense(</span><span class="s3">128</span><span class="s2">, </span><span class="s1">activation=</span><span class="s4">&quot;relu&quot;</span><span class="s1">)(headModel)</span>
+<span class="s1">headModel = Dropout(</span><span class="s3">0.5</span><span class="s1">)(headModel)</span>
+<span class="s1">headModel = Dense(</span><span class="s3">2</span><span class="s2">, </span><span class="s1">activation=</span><span class="s4">&quot;softmax&quot;</span><span class="s1">)(headModel)</span>
+
+<span class="s0"># place the head FC model on top of the base model (this will become</span>
+<span class="s0"># the actual model we will train)</span>
+<span class="s1">model = Model(inputs=baseModel.input</span><span class="s2">, </span><span class="s1">outputs=headModel)</span>
+
+<span class="s0"># loop over all layers in the base model and freeze them so they will</span>
+<span class="s0"># *not* be updated during the first training process</span>
+<span class="s2">for </span><span class="s1">layer </span><span class="s2">in </span><span class="s1">baseModel.layers:</span>
+	<span class="s1">layer.trainable = </span><span class="s2">False</span>
+
+<span class="s0"># compile our model</span>
+<span class="s1">print(</span><span class="s4">&quot;[INFO] compiling model...&quot;</span><span class="s1">)</span>
+<span class="s1">opt = Adam(lr=INIT_LR</span><span class="s2">, </span><span class="s1">decay=INIT_LR / EPOCHS)</span>
+<span class="s1">model.compile(loss=</span><span class="s4">&quot;binary_crossentropy&quot;</span><span class="s2">, </span><span class="s1">optimizer=opt</span><span class="s2">,</span>
+	<span class="s1">metrics=[</span><span class="s4">&quot;accuracy&quot;</span><span class="s1">])</span>
+
+<span class="s0"># train the head of the network</span>
+<span class="s1">print(</span><span class="s4">&quot;[INFO] training head...&quot;</span><span class="s1">)</span>
+<span class="s1">H = model.fit(</span>
+	<span class="s1">aug.flow(trainX</span><span class="s2">, </span><span class="s1">trainY</span><span class="s2">, </span><span class="s1">batch_size=BS)</span><span class="s2">,</span>
+	<span class="s1">steps_per_epoch=len(trainX) // BS</span><span class="s2">,</span>
+	<span class="s1">validation_data=(testX</span><span class="s2">, </span><span class="s1">testY)</span><span class="s2">,</span>
+	<span class="s1">validation_steps=len(testX) // BS</span><span class="s2">,</span>
+	<span class="s1">epochs=EPOCHS)</span>
+
+<span class="s0"># make predictions on the testing set</span>
+<span class="s1">print(</span><span class="s4">&quot;[INFO] evaluating network...&quot;</span><span class="s1">)</span>
+<span class="s1">predIdxs = model.predict(testX</span><span class="s2">, </span><span class="s1">batch_size=BS)</span>
+
+<span class="s0"># for each image in the testing set we need to find the index of the</span>
+<span class="s0"># label with corresponding largest predicted probability</span>
+<span class="s1">predIdxs = np.argmax(predIdxs</span><span class="s2">, </span><span class="s1">axis=</span><span class="s3">1</span><span class="s1">)</span>
+
+<span class="s0"># show a nicely formatted classification report</span>
+<span class="s1">print(classification_report(testY.argmax(axis=</span><span class="s3">1</span><span class="s1">)</span><span class="s2">, </span><span class="s1">predIdxs</span><span class="s2">,</span>
+	<span class="s1">target_names=lb.classes_))</span>
+
+<span class="s0"># serialize the model to disk</span>
+<span class="s1">print(</span><span class="s4">&quot;[INFO] saving mask detector model...&quot;</span><span class="s1">)</span>
+<span class="s1">model.save(</span><span class="s4">&quot;mask_detector.model&quot;</span><span class="s2">, </span><span class="s1">save_format=</span><span class="s4">&quot;h5&quot;</span><span class="s1">)</span>
+
+<span class="s0"># plot the training loss and accuracy</span>
+<span class="s1">N = EPOCHS</span>
+<span class="s1">plt.style.use(</span><span class="s4">&quot;ggplot&quot;</span><span class="s1">)</span>
+<span class="s1">plt.figure()</span>
+<span class="s1">plt.plot(np.arange(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">N)</span><span class="s2">, </span><span class="s1">H.history[</span><span class="s4">&quot;loss&quot;</span><span class="s1">]</span><span class="s2">, </span><span class="s1">label=</span><span class="s4">&quot;train_loss&quot;</span><span class="s1">)</span>
+<span class="s1">plt.plot(np.arange(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">N)</span><span class="s2">, </span><span class="s1">H.history[</span><span class="s4">&quot;val_loss&quot;</span><span class="s1">]</span><span class="s2">, </span><span class="s1">label=</span><span class="s4">&quot;val_loss&quot;</span><span class="s1">)</span>
+<span class="s1">plt.plot(np.arange(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">N)</span><span class="s2">, </span><span class="s1">H.history[</span><span class="s4">&quot;accuracy&quot;</span><span class="s1">]</span><span class="s2">, </span><span class="s1">label=</span><span class="s4">&quot;train_acc&quot;</span><span class="s1">)</span>
+<span class="s1">plt.plot(np.arange(</span><span class="s3">0</span><span class="s2">, </span><span class="s1">N)</span><span class="s2">, </span><span class="s1">H.history[</span><span class="s4">&quot;val_accuracy&quot;</span><span class="s1">]</span><span class="s2">, </span><span class="s1">label=</span><span class="s4">&quot;val_acc&quot;</span><span class="s1">)</span>
+<span class="s1">plt.title(</span><span class="s4">&quot;Training Loss and Accuracy&quot;</span><span class="s1">)</span>
+<span class="s1">plt.xlabel(</span><span class="s4">&quot;Epoch #&quot;</span><span class="s1">)</span>
+<span class="s1">plt.ylabel(</span><span class="s4">&quot;Loss/Accuracy&quot;</span><span class="s1">)</span>
+<span class="s1">plt.legend(loc=</span><span class="s4">&quot;lower left&quot;</span><span class="s1">)</span>
+<span class="s1">plt.savefig(</span><span class="s4">&quot;plot.png&quot;</span><span class="s1">)</span></pre>
+</body>
+</html>
